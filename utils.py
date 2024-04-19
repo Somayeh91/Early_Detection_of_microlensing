@@ -5,17 +5,19 @@ from tqdm import tqdm
 
 
 
-def read_data(path = 'all_data.pkl', 
+def read_data(path = 'all_data_muLens_larger_than_3sigma.pkl', 
               n_points = 5):
     all_data = pkl.load(open(path, 'rb'))
+    filters = ['r ', 'i ']
+    n_filters = len(filters)
     labels = []
     data = []
     c = 0
     
     for k, key in tqdm(enumerate(all_data.keys())):
         for key2 in all_data[key].keys():
-            tmp = np.ones((n_points, 3*3))*np.nan
-            for b, band in enumerate(['g ', 'r ', 'i ']):
+            tmp = np.ones((n_points, n_filters*3))*np.nan
+            for b, band in enumerate(filters):
                
                 try: 
                     df = pd.DataFrame(data = all_data[key][key2], 
@@ -40,6 +42,14 @@ def read_data(path = 'all_data.pkl',
                 
             
             c += 1
+    del_inds = []
+    for d in range(len(data)):
+        if np.sum(np.isnan(data[d]))>0:
+            del_inds.append(d)
+        
+        
+    data = np.delete(data, del_inds, axis=0)
+    labels = np.delete(labels, del_inds, axis=0)
             
     return data, labels
         
