@@ -2,6 +2,8 @@ import numpy as np
 import pickle as pkl
 import pandas as pd
 from tqdm import tqdm
+import scipy.optimize as op
+from Common_functions import lnlike
 
 
 
@@ -52,5 +54,69 @@ def read_data(path = 'all_data_muLens_larger_than_3sigma.pkl',
     labels = np.delete(labels, del_inds, axis=0)
             
     return data, labels
+
+
+
+def select_points_roman(path = '/Users/somayeh/Library/Mobile Documents/com~apple~CloudDocs/Research/Microlensing_Harvard/',
+                        n_days = 5, 
+                        thresh_mag = 1.1,
+                        cadence = 15/(60*24)):
+    
+    data = np.load(path+'alllc_as_input.npy')
+    labels = data[:,-1]
+    IDs = data[:,0]
+    data = data[:,1:-2]
+    
+    mjd_t = np.arange(len(data[0])) * cadence
+    n_points = int(n_days/cadence)
+    
+    
+    new_data = []
+    new_labels = []
+    
+    for d, dat in tqdm(enumerate(data)):
+        if len(dat[dat>thresh_mag])<n_points:
+            continue
         
+        new_data.append(dat[dat>thresh_mag][:n_points])
+        new_labels.append(labels[d])
         
+    return np.asarray(new_data), np.asarray(new_labels), IDs
+    
+def fit_PSPL(mjd_t, data):
+    data_exp = data
+    t0_guess = mjd_t[np.argmax(data_exp)]
+    tE_guess = [1, 20]
+    u0_true = 1./np.max(data_exp)
+    blending = 0.5
+
+    merr = np.ones(len(data_exp))*0.001
+
+    all_fit_res = []
+
+    nll = lambda *args: -lnlike(*args)
+    fun_ = np.inf
+    for tE in tE_guess:
+        res_scipy = op.minimize(nll, [t0_guess, tE, u0_true, blending],
+                                args=(mjd_t,
+                                     data_exp,
+                                     merr), method = 'Nelder-Mead')
+        if res_scipy['fun']<fun_:
+            fun_ = res_scipy['fun']
+            all_fit_res = res_scipy
+            
+    return all_fit_res, fun_
+    
+    
+        
+def lnlike(theta, t, f, f_err):
+    t0, tE, u0, fs = theta
+    model = fun(t, t0, tE, u0, fs)
+    inv_sigma2 = 1.0/(f_err**2)
+    return -0.5*(np.sum((f-model)**2*inv_sigma2))
+
+def fun (t,t0,tE, u0, fs):
+    u = np.sqrt(u0**2+((t-t0)/tE)**2)
+    A = ((u**2)+2)/(u*np.sqrt(u**2+4))
+    F = fs*A +(1-fs)
+    return F
