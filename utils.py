@@ -4,7 +4,8 @@ import pandas as pd
 from tqdm import tqdm
 import scipy.optimize as op
 from Common_functions import lnlike
-
+import matplotlib.cm as cm
+import matplotlib.colors as mcolors
 
 
 def read_data(path = 'all_data_muLens_larger_than_3sigma.pkl', 
@@ -83,14 +84,15 @@ def select_points_roman(path = '/Users/somayeh/Library/Mobile Documents/com~appl
         
     return np.asarray(new_data), np.asarray(new_labels), IDs
     
-def fit_PSPL(mjd_t, data):
+def fit_PSPL(mjd_t, data, merr=np.nan):
     data_exp = data
     t0_guess = mjd_t[np.argmax(data_exp)]
     tE_guess = [1, 20]
     u0_true = 1./np.max(data_exp)
     blending = 0.5
 
-    merr = np.ones(len(data_exp))*0.001
+    if not hasattr(merr, "__len__"):
+        merr = np.ones(len(data_exp))*0.001
 
     all_fit_res = []
 
@@ -120,3 +122,42 @@ def fun (t,t0,tE, u0, fs):
     A = ((u**2)+2)/(u*np.sqrt(u**2+4))
     F = fs*A +(1-fs)
     return F
+
+
+
+def colorbar_index(ncolors, cmap, label):
+    cmap = cmap_discretize(cmap, ncolors)
+    mappable = cm.ScalarMappable(cmap=cmap)
+    mappable.set_array([])
+    mappable.set_clim(0.5, ncolors+0.5)
+    colorbar = plt.colorbar(mappable)
+    colorbar.set_ticks(np.linspace(1, ncolors, ncolors))
+    colorbar.set_ticklabels(np.array([0, 1])) #range(ncolors)
+    colorbar.set_label(label=label, size=20, weight='bold')
+    colorbar.ax.tick_params(labelsize=20)
+    return cmap
+
+def cmap_discretize(cmap, N):
+    """Return a discrete colormap from the continuous colormap cmap.
+
+        cmap: colormap instance, eg. cm.jet.
+        N: number of colors.
+
+    Example
+        x = resize(arange(100), (5,100))
+        djet = cmap_discretize(cm.jet, 5)
+        imshow(x, cmap=djet)
+    """
+
+    if type(cmap) == str:
+        cmap = plt.get_cmap(cmap)
+    colors_i = np.concatenate((np.linspace(0, 1., N), (0.,0.,0.,0.)))
+    colors_rgba = cmap(colors_i)
+    indices = np.linspace(0, 1., N+1)
+    cdict = {}
+    for ki,key in enumerate(('red','green','blue')):
+        cdict[key] = [ (indices[i], colors_rgba[i-1,ki], colors_rgba[i,ki])
+                       for i in range(N+1) ]
+    # Return colormap object.
+    return mcolors.LinearSegmentedColormap(cmap.name + "_%d"%N, cdict, 1024)
+
