@@ -5,8 +5,9 @@ from tqdm import tqdm
 import scipy.optimize as op
 from Common_functions import lnlike
 import matplotlib.cm as cm
+from scipy.interpolate import interp1d
 import matplotlib.colors as mcolors
-
+import math
 
 def read_data(path = 'all_data_muLens_larger_than_3sigma.pkl', 
               n_points = 5):
@@ -58,7 +59,7 @@ def read_data(path = 'all_data_muLens_larger_than_3sigma.pkl',
 
 
 
-def select_points_roman(path = '/Users/somayeh/Library/Mobile Documents/com~apple~CloudDocs/Research/Microlensing_Harvard/',
+def select_points_roman(path = '/Users/somayeh/Library/Mobile Documents/com~apple~CloudDocs/Research/Microlensing/Microlensing_Harvard/',
                         n_days = 5, 
                         thresh_mag = 1.1,
                         cadence = 15/(60*24)):
@@ -161,3 +162,58 @@ def cmap_discretize(cmap, N):
     # Return colormap object.
     return mcolors.LinearSegmentedColormap(cmap.name + "_%d"%N, cdict, 1024)
 
+def fit_Cheby(t, y, degree=50):
+    n =degree
+
+    y_values = y
+    mjd_t = t
+
+    if n <11:
+        print('Degree must be more than 10.')
+        sys.exit()
+    xmin = min(mjd_t)
+    xmax = max(mjd_t)
+    bma = 0.5 * (xmax - xmin)
+    bpa = 0.5 * (xmax + xmin)
+    interpoll = interp1d(mjd_t, y_values, kind='cubic')
+    f = [interpoll(math.cos(math.pi * (k + 0.5) / n) * bma + bpa) for k in range(n)]
+    fac = 2.0 / n
+    cheby_coefficients = [fac * sum([f[k] * math.cos(math.pi * j * (k + 0.5) / n) for k in range(n)]) for j in range(n)]
+
+
+    Cheby_all = {}
+    Cheby_func = []
+
+    for t_i in np.sort(mjd_t):
+
+        y = (2.0 * t_i - xmin - xmax) * (1.0 / (xmax - xmin))
+        y2 = 2.0 * y
+        (d, dd) = (cheby_coefficients[-1], 0)             # Special case first step for efficiency
+
+        for cj in cheby_coefficients[-2:0:-1]:            # Clenshaw's recurrence
+            (d, dd) = (y2 * d - dd + cj, d)
+        Cheby_func.append(y * d - dd + 0.5 * cheby_coefficients[0])
+
+    Cheby_all['y_fitted'] = np.asarray(Cheby_func)
+
+
+    Cheby_all['Cheby_a0'] = (cheby_coefficients[0])/(cheby_coefficients[0])
+    Cheby_all['Cheby_a2'] = (cheby_coefficients[2])/(cheby_coefficients[0])
+    Cheby_all['Cheby_a4'] = (cheby_coefficients[4])/(cheby_coefficients[0])
+    Cheby_all['Cheby_a6'] = (cheby_coefficients[6])/(cheby_coefficients[0])
+    Cheby_all['Cheby_a8'] = (cheby_coefficients[8])/(cheby_coefficients[0])
+    Cheby_all['Cheby_a10'] = (cheby_coefficients[10])/(cheby_coefficients[0])
+
+
+    Cheby_all['Cheby_cj_sqr'] = np.sum((np.asarray(cheby_coefficients)/(cheby_coefficients[0]))**2)
+    Cheby_all['log10_Cheby_cj_sqr_minus_one'] = np.log10(Cheby_all['Cheby_cj_sqr'] - 1)
+    Cheby_all['pos_log10_Cheby_cj_sqr_minus_one'] = -1*np.log10(Cheby_all['Cheby_cj_sqr'] - 1)
+    Cheby_all['delta_A_chebyshev_sqr'] = np.sum((y_values - Cheby_func)**2)
+    
+    return Cheby_all
+
+def get_column_from_dict(all_params, col_name):
+    tmp = []
+    for i, key in enumerate(list(all_params.keys())):
+        tmp.append(all_params[key][col_name])
+    return np.asarray(tmp)
