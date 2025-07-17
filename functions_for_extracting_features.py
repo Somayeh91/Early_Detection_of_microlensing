@@ -322,7 +322,7 @@ def fit_Cheby(time_filtered, magnification_filtered, index, df, degree=50):
     
         Cheby_all['y_fitted'] = np.asarray(Cheby_func)
 
-
+        Cheby_all['y_fitted'] = np.asarray(Cheby_func)
         Cheby_all['Cheby_a0'] = (cheby_coefficients[0])/(cheby_coefficients[0])
         Cheby_all['Cheby_a2'] = (cheby_coefficients[2])/(cheby_coefficients[0])
         Cheby_all['Cheby_a4'] = (cheby_coefficients[4])/(cheby_coefficients[0])

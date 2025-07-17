@@ -59,16 +59,16 @@ def read_data(path = 'all_data_muLens_larger_than_3sigma.pkl',
 
 
 
-def select_points_roman(path = '/Users/somayeh/Library/Mobile Documents/com~apple~CloudDocs/Research/Microlensing/Microlensing_Harvard/',
+def select_points_roman(path = '/Users/somayeh/Library/Mobile Documents/com~apple~CloudDocs/Research/Microlensing/Machine_Learning/Microlensing_Harvard/',
                         n_days = 5, 
-                        thresh_mag = 1.1,
+                        thresh_mag = 0.1,
                         cadence = 15/(60*24)):
     
     data = np.load(path+'alllc_as_input.npy')
     labels = data[:,-1]
     IDs = data[:,0]
     data = data[:,1:-2]
-    
+        
     mjd_t = np.arange(len(data[0])) * cadence
     n_points = int(n_days/cadence)
     
@@ -77,10 +77,11 @@ def select_points_roman(path = '/Users/somayeh/Library/Mobile Documents/com~appl
     new_labels = []
     
     for d, dat in tqdm(enumerate(data)):
-        if len(dat[dat>thresh_mag])<n_points:
+        new_dat = (dat-min(dat))/(max(dat)-min(dat))
+        if len(new_dat[new_dat>thresh_mag])<n_points:
             continue
         
-        new_data.append(dat[dat>thresh_mag][:n_points])
+        new_data.append(new_dat[new_dat>thresh_mag][:n_points])
         new_labels.append(labels[d])
         
     return np.asarray(new_data), np.asarray(new_labels), IDs
@@ -196,7 +197,7 @@ def fit_Cheby(t, y, degree=50):
 
     Cheby_all['y_fitted'] = np.asarray(Cheby_func)
 
-
+    Cheby_all['all_coeffs'] = cheby_coefficients
     Cheby_all['Cheby_a0'] = (cheby_coefficients[0])/(cheby_coefficients[0])
     Cheby_all['Cheby_a2'] = (cheby_coefficients[2])/(cheby_coefficients[0])
     Cheby_all['Cheby_a4'] = (cheby_coefficients[4])/(cheby_coefficients[0])
